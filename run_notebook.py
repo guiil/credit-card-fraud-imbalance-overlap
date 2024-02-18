@@ -15,7 +15,9 @@ def main(argv):
     os.system(
         f'jupyter nbconvert --execute {IPYNB_FILENAME} --to html '
         f'--output-dir "results/{dataset_name}/" '
-        f'--output "{dataset_name}.html"'
+        f'--output "{dataset_name}.html" '
+        '--TagRemovePreprocessor.enabled=True '
+        '--TagRemovePreprocessor.remove_input_tags hide_code'
     )
     return None
 
