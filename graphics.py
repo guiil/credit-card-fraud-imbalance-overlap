@@ -121,7 +121,8 @@ def generate_graphics_from_gridsearchcv_results(
     scor = scor[
         [
             'Amostragem', 'Classificador',
-            'mean_test_AUPRC_score', 'mean_test_AUROC_score',
+            'mean_test_AUPRC_score',
+            'mean_test_AUROC_score',
             'mean_test_f1_score'
         ]
     ].rename(columns={

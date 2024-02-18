@@ -1,29 +1,29 @@
 import numpy as np
-from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.neighbors import NearestNeighbors
 
 
-class RValue(BaseEstimator, TransformerMixin):
+class RValue:
     def __init__(self, n_neighbors=7, theta=3):
         self.n_neighbors = n_neighbors
         self.theta = theta
 
-    def fit(self, x, y=None):
+    def generate_all_metrics(self, x, y):
 
         neigh = NearestNeighbors(n_neighbors=self.n_neighbors + 1)
-        neigh.fit(x)
+        neigh.fit(x.values)
         total_samples = len(x)
 
         total_overlapping_samples = 0
 
         # initiate Metrics dict
         metrics_dict = {
+            'total_samples': total_samples,
             'r(f)': 0,
         }
         for c in y.unique():
             metrics_dict[f'r(C{c})'] = 0
 
-        for idx, sample in enumerate(x):
+        for idx, sample in enumerate(x.values):
 
             sample_class = y.iloc[idx]
 
@@ -71,10 +71,5 @@ class RValue(BaseEstimator, TransformerMixin):
         )
         metrics_dict['R_aug(f)'] = r_aug
 
-        print(metrics_dict)
-
-        self.r_values = metrics_dict
-        return self
-
-    def transform(self, x, y=None):
-        return x
+        r_values = metrics_dict
+        return r_values
