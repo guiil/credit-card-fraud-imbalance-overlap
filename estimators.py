@@ -17,7 +17,9 @@ from sklearn.metrics import \
     auc, f1_score, \
     precision_recall_curve, \
     PrecisionRecallDisplay, \
-    average_precision_score
+    average_precision_score, \
+    confusion_matrix, \
+    ConfusionMatrixDisplay
 from sklearn.model_selection import train_test_split, \
     GridSearchCV, StratifiedKFold
 
@@ -121,7 +123,7 @@ class EstimatorSelectionHelper:
                     if transformer__name__ != ''
                     else estimator
                 )
-                estimator__name__ = transformer__name__ + ' __' + model__name__
+                estimator__name__ = transformer__name__ + '__' + model__name__
                 pipe.steps.insert(1, [transformer__name__, transformer])
 
             print(
@@ -156,7 +158,7 @@ class EstimatorSelectionHelper:
                           f'GridSearchCV_{estimator__name__}.pkl'
 
             if os.path.exists(pickle_path):
-                self = load(pickle_path)
+                self.__dict__ = load(pickle_path)
 
             else:
 
@@ -182,6 +184,8 @@ class EstimatorSelectionHelper:
 
                 t1 = datetime.now()
                 self.y_pred = self.gs[estimator].predict(x_test)
+                self.y_probas = self.gs[estimator].predict_proba(x_test)
+                self.y_score = self.y_probas[:, 1]
                 t2 = datetime.now()
 
                 # predict_time
@@ -194,12 +198,14 @@ class EstimatorSelectionHelper:
                     'seconds).'
                 )
 
-            print('\n\n')
-            print('Best params:', self.gs[estimator].best_params_)
-            print('Best score:', self.gs[estimator].best_score_)
-            print('\n\n')
+            print('Best params: ', self.gs[estimator].best_params_)
+            print('Best score: ', self.gs[estimator].best_score_)
 
-            fpr, tpr, _ = roc_curve(y_test, self.y_pred)
+            self.confusion_mtx = confusion_matrix(y_test, self.y_pred)
+            ConfusionMatrixDisplay.from_predictions(y_test, self.y_pred)
+            plt.show()
+
+            fpr, tpr, _ = roc_curve(y_test, self.y_score)
             roc_auc = auc(fpr, tpr)
             print(f'AUROC: {roc_auc}')
 
@@ -212,13 +218,17 @@ class EstimatorSelectionHelper:
 
             roc_display.ax_.set_title(f"ROC {estimator}")
             plt.savefig(
-                f'results/{dataset_name}/imgs/'
+                f'results/{dataset_name}/imgs/pgf/'
                 f'roc_curve_{estimator__name__}.pgf', bbox_inches="tight"
+            )
+            plt.savefig(
+                f'results/{dataset_name}/imgs/png/'
+                f'roc_curve_{estimator__name__}.png', bbox_inches="tight"
             )
             plt.show()
 
-            precision, recall, _ = precision_recall_curve(y_test, self.y_pred)
-            average_precision = average_precision_score(y_test, self.y_pred)
+            precision, recall, _ = precision_recall_curve(y_test, self.y_score)
+            average_precision = average_precision_score(y_test, self.y_score)
             print(f'AUPRC: {average_precision}')
 
             prc_display = PrecisionRecallDisplay(
@@ -233,8 +243,12 @@ class EstimatorSelectionHelper:
             )
 
             plt.savefig(
-                f'results/{dataset_name}/imgs/'
+                f'results/{dataset_name}/imgs/pgf/'
                 f'pr_curve_{estimator__name__}.pgf', bbox_inches="tight"
+            )
+            plt.savefig(
+                f'results/{dataset_name}/imgs/png/'
+                f'pr_curve_{estimator__name__}.png', bbox_inches="tight"
             )
             plt.show()
 
@@ -246,6 +260,7 @@ class EstimatorSelectionHelper:
                 'dataset_name': dataset_name,
                 'r_values': self.r_values,
                 'best_params_': self.gs[estimator].best_params_,
+                'confusion_matrix': self.confusion_mtx.tolist(),
                 'fpr': fpr.tolist(),
                 'tpr': tpr.tolist(),
                 'roc_auc': roc_auc,
@@ -260,7 +275,7 @@ class EstimatorSelectionHelper:
             }
 
             # save to file
-            dump(self, pickle_path)
+            dump(self.__dict__, pickle_path)
 
             with open(
                 (
@@ -309,7 +324,7 @@ class EstimatorSelectionHelper:
 
         return df_metadata
 
-    def generate_score_summary(self):
+    def generate_validation_score_summary(self):
 
         # initiate empty DataFrame
         df_scores = pd.DataFrame()
@@ -393,4 +408,23 @@ class EstimatorSelectionHelper:
 
         score_summary = df_scores[columns].reset_index(drop=True)
 
+        return score_summary
+
+    def generate_test_score_summary(self):
+
+        df_test_score = pd.DataFrame()
+        for estimator, result in self.test_results.items():
+            df_test_score = pd.concat([
+                df_test_score,
+                pd.DataFrame(
+                    {
+                        'estimator': [estimator],
+                        'AUPRC': [result['auprc']],
+                        'AUROC': [result['roc_auc']],
+                        'f1': [result['f1-score']]
+                    }
+                )
+            ])
+
+        score_summary = df_test_score.reset_index(drop=True)
         return score_summary
