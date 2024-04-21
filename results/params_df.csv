@@ -1,0 +1,11 @@
+Algoritmo	Hiper-parâmetros
+NoneType	
+SMOTE	\makecell[l]{sampling_strategy = [0.5, 0.8, 1] \\ k_neighbors = [3, 7, 9]}
+BorderlineSMOTE	\makecell[l]{sampling_strategy = [0.5, 0.8, 1] \\ kind = ['borderline-1', 'borderline-2']}
+ClusterCentroids	\makecell[l]{sampling_strategy = [0.5, 0.8, 1]}
+NearMiss	\makecell[l]{version = [1, 2] \\ n_neighbors = [3, 7, 9]}
+ExtraTreesClassifier	\makecell[l]{n_estimators = [16, 32, 64] \\ criterion = ['gini', 'entropy'] \\ max_depth = [4, 8, 16, 32]}
+RandomForestClassifier	\makecell[l]{n_estimators = [16, 32, 64] \\ criterion = ['gini', 'entropy'] \\ max_depth = [4, 8, 16, 32]}
+DecisionTreeClassifier	\makecell[l]{criterion = ['gini', 'entropy'] \\ max_depth = [4, 8, 16, 32]}
+AdaBoostClassifier	\makecell[l]{n_estimators = [32, 64, 128, 256]}
+GradientBoostingClassifier	\makecell[l]{n_estimators = [32, 64, 128, 256] \\ learning_rate = [0.01, 0.02, 0.05, 0.1]}
