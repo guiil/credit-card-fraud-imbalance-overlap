@@ -4,11 +4,12 @@ import logging
 import builtins
 import json
 import itertools
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 from imblearn.pipeline import Pipeline as imbpipeline
 from sklearn.preprocessing import StandardScaler
@@ -17,11 +18,12 @@ from sklearn.metrics import \
     auc, f1_score, \
     precision_recall_curve, \
     PrecisionRecallDisplay, \
-    average_precision_score
-from sklearn.model_selection import train_test_split, \
-    GridSearchCV, StratifiedKFold
+    average_precision_score, \
+    confusion_matrix
 
-from joblib import dump, load
+from sklearn.model_selection import GridSearchCV, StratifiedKFold
+
+import pickle
 
 from metrics import RValue
 
@@ -54,10 +56,12 @@ class EstimatorSelectionHelper:
     def __init__(
             self,
             transformers,
-            models
+            models,
+            dataset_name
     ):
         self.transformers = transformers
         self.models = models
+        self.dataset_name = dataset_name
 
         self.estimator_product = itertools.product(
             self.transformers,
@@ -67,32 +71,33 @@ class EstimatorSelectionHelper:
         # initiate variables
         self.grid_searches = {}
         self.test_results = {}
-        self.gs = {}
-        self.gs = {}
 
     def fit_predict(
         self,
-        x, y,
-        test_size=0.15,
+        x_train, x_test, y_train, y_test,
         cv=5,
         n_jobs=3, verbose=1,
         scoring=None, refit=False,
         pre_dispatch='2*n_jobs',
-        dataset_name='dataset'
     ):
 
-        # Para testes, limitar a quantidade de dados aumentando test_size...
-        x_train, x_test, y_train, y_test = train_test_split(
-            x, y,
-            stratify=y,
-            test_size=test_size
-        )
+        r_values_path = f'results/{self.dataset_name}/r_values_all_data.json'
 
         r_measuring = RValue()
-        self.r_values = r_measuring.generate_all_metrics(x_train, y_train)
+
+        x = np.concatenate((x_train, x_test), axis=0)
+        y = np.concatenate((y_train, y_test), axis=0)
+
+        if not os.path.exists(r_values_path):
+            self.r_values_all_data = r_measuring.generate_all_metrics(x, y)
+            with open(r_values_path, 'w') as f:
+                f.write(json.dumps(self.r_values_all_data))
+        else:
+            with open(r_values_path, 'r') as f:
+                self.r_values_all_data = json.loads(f.read())
 
         metrics_json = 'Cálculo de R-Valor:' + \
-            json.dumps(self.r_values, indent=2)
+            json.dumps(self.r_values_all_data, indent=2)
 
         print(metrics_json)
 
@@ -121,7 +126,7 @@ class EstimatorSelectionHelper:
                     if transformer__name__ != ''
                     else estimator
                 )
-                estimator__name__ = transformer__name__ + ' __' + model__name__
+                estimator__name__ = transformer__name__ + '__' + model__name__
                 pipe.steps.insert(1, [transformer__name__, transformer])
 
             print(
@@ -152,15 +157,30 @@ class EstimatorSelectionHelper:
                 case None:
                     params.update()
 
-            pickle_path = f'results/{dataset_name}/pkls/' \
+            pickle_path = f'results/{self.dataset_name}/pkls/' \
                           f'GridSearchCV_{estimator__name__}.pkl'
 
             if os.path.exists(pickle_path):
-                self = load(pickle_path)
+                with open(pickle_path, 'rb') as p:
+                    gs = pickle.load(p)
+                with open(
+                    (
+                        f'results/{self.dataset_name}/'
+                        f'test_results/{estimator__name__}.json'
+                    ),
+                    'r'
+                ) as f:
+                    self.test_results[estimator__name__] = json.load(f)
+
+                gridsearchcv_fit_time = timedelta(
+                    seconds=self.test_results[
+                        estimator__name__
+                    ]['gridsearchcv_fit_time']
+                )
 
             else:
 
-                self.gs[estimator] = GridSearchCV(
+                gs = GridSearchCV(
                     estimator=pipe, param_grid=params,
                     cv=cv, n_jobs=n_jobs,
                     verbose=verbose, scoring=scoring, refit=refit,
@@ -168,38 +188,68 @@ class EstimatorSelectionHelper:
                 )
 
                 t1 = datetime.now()
-                self.gs[estimator].fit(x_train, y_train)
+                gs.fit(x_train, y_train)
                 t2 = datetime.now()
 
                 # fit time
-                self.gridsearchcv_fit_time = t2 - t1
+                gridsearchcv_fit_time = t2 - t1
 
-                print(
-                    f'[{self.now()}] Fit execution time is '
-                    f'{self.gridsearchcv_fit_time} '
-                    f'({self.gridsearchcv_fit_time.total_seconds()} seconds).'
-                )
+                # save to file
+                with open(pickle_path, 'wb') as p:
+                    pickle.dump(gs, p)
 
-                t1 = datetime.now()
-                self.y_pred = self.gs[estimator].predict(x_test)
-                t2 = datetime.now()
+            print(
+                f'[{self.now()}] Fit execution time is '
+                f'{gridsearchcv_fit_time} '
+                f'({gridsearchcv_fit_time.total_seconds()} seconds).'
+            )
 
-                # predict_time
-                self.gridsearchcv_predict_time = t2 - t1
+            print('Melhores parâmetros: ', gs.best_params_)
+            print('Melhor AUPRC: ', gs.best_score_)
 
-                print(
-                    f'[{self.now()}] Predict execution time is '
-                    f'{self.gridsearchcv_predict_time}'
-                    f'({self.gridsearchcv_predict_time.total_seconds()} '
-                    'seconds).'
-                )
+            t1 = datetime.now()
+            y_pred = gs.predict(x_test)
+            y_probas = gs.predict_proba(x_test)
+            y_score = y_probas[:, 1]
+            t2 = datetime.now()
 
-            print('\n\n')
-            print('Best params:', self.gs[estimator].best_params_)
-            print('Best score:', self.gs[estimator].best_score_)
-            print('\n\n')
+            # predict_time
+            gridsearchcv_predict_time = t2 - t1
 
-            fpr, tpr, _ = roc_curve(y_test, self.y_pred)
+            print(
+                f'[{self.now()}] Predict execution time is '
+                f'{gridsearchcv_predict_time}'
+                f'({gridsearchcv_predict_time.total_seconds()} '
+                'seconds).'
+            )
+
+            confusion_mtx = confusion_matrix(y_test, y_pred)
+            cmn = (confusion_mtx.astype('float') /
+                   confusion_mtx.sum(axis=1)[:, np.newaxis])
+
+            group_counts = [
+                f'{v:0.0f}' for v in confusion_mtx.flatten()
+            ]
+
+            group_percentages = [
+                f'{v:.2%}'
+                for v in
+                cmn.flatten()
+            ]
+            labels = [
+                f'{v1}\n{v2}'
+                for v1, v2 in
+                zip(group_counts, group_percentages)
+            ]
+            labels = [labels[:2], labels[2:]]
+            ax = sns.heatmap(cmn, annot=labels, fmt='s')
+            for t in ax.texts:
+                t.set_text(t.get_text() + " %")
+            plt.ylabel('Real')
+            plt.xlabel('Previsto')
+            plt.show(block=False)
+
+            fpr, tpr, _ = roc_curve(y_test, y_score)
             roc_auc = auc(fpr, tpr)
             print(f'AUROC: {roc_auc}')
 
@@ -212,13 +262,17 @@ class EstimatorSelectionHelper:
 
             roc_display.ax_.set_title(f"ROC {estimator}")
             plt.savefig(
-                f'results/{dataset_name}/imgs/'
+                f'results/{self.dataset_name}/imgs/pgf/'
                 f'roc_curve_{estimator__name__}.pgf', bbox_inches="tight"
+            )
+            plt.savefig(
+                f'results/{self.dataset_name}/imgs/png/'
+                f'roc_curve_{estimator__name__}.png', bbox_inches="tight"
             )
             plt.show()
 
-            precision, recall, _ = precision_recall_curve(y_test, self.y_pred)
-            average_precision = average_precision_score(y_test, self.y_pred)
+            precision, recall, _ = precision_recall_curve(y_test, y_score)
+            average_precision = average_precision_score(y_test, y_score)
             print(f'AUPRC: {average_precision}')
 
             prc_display = PrecisionRecallDisplay(
@@ -233,19 +287,22 @@ class EstimatorSelectionHelper:
             )
 
             plt.savefig(
-                f'results/{dataset_name}/imgs/'
+                f'results/{self.dataset_name}/imgs/pgf/'
                 f'pr_curve_{estimator__name__}.pgf', bbox_inches="tight"
+            )
+            plt.savefig(
+                f'results/{self.dataset_name}/imgs/png/'
+                f'pr_curve_{estimator__name__}.png', bbox_inches="tight"
             )
             plt.show()
 
-            f1 = f1_score(y_test, self.y_pred)
+            f1 = f1_score(y_test, y_pred)
             print(f'f1-score: {f1}')
 
-            self.grid_searches[estimator] = self.gs[estimator]
-            self.test_results[estimator] = {
-                'dataset_name': dataset_name,
-                'r_values': self.r_values,
-                'best_params_': self.gs[estimator].best_params_,
+            self.test_results[estimator__name__] = {
+                'dataset_name': self.dataset_name,
+                'best_params_': gs.best_params_,
+                'confusion_matrix': confusion_mtx.tolist(),
                 'fpr': fpr.tolist(),
                 'tpr': tpr.tolist(),
                 'roc_auc': roc_auc,
@@ -254,22 +311,19 @@ class EstimatorSelectionHelper:
                 'auprc': average_precision,
                 'f1-score': f1,
                 'gridsearchcv_fit_time':
-                    self.gridsearchcv_fit_time.total_seconds(),
+                    gridsearchcv_fit_time.total_seconds(),
                 'gridsearchcv_predict_time':
-                    self.gridsearchcv_predict_time.total_seconds(),
+                    gridsearchcv_predict_time.total_seconds(),
             }
-
-            # save to file
-            dump(self, pickle_path)
 
             with open(
                 (
-                    f'results/{dataset_name}/'
+                    f'results/{self.dataset_name}/'
                     f'test_results/{estimator__name__}.json'
                 ),
                 'w'
             ) as f:
-                json.dump(self.test_results[estimator], f, indent=4)
+                json.dump(self.test_results[estimator__name__], f, indent=4)
 
     def generate_metadata_summary(self):
 
@@ -277,10 +331,16 @@ class EstimatorSelectionHelper:
         df_metadata = pd.DataFrame()
 
         # iterate through grid searches
-        for estimator in self.grid_searches:
+        for estimator in self.test_results:
+
+            pickle_path = f'results/{self.dataset_name}/pkls/' \
+                          f'GridSearchCV_{estimator}.pkl'
+
+            with open(pickle_path, 'rb') as p:
+                gs = pickle.load(p)
 
             # fetch estimator cv results
-            cv_results = self.grid_searches[estimator].cv_results_
+            cv_results = gs.cv_results_
 
             # create dataframe with cv metadata
             metadata_cols = [
@@ -309,7 +369,7 @@ class EstimatorSelectionHelper:
 
         return df_metadata
 
-    def generate_score_summary(self):
+    def generate_validation_score_summary(self):
 
         # initiate empty DataFrame
         df_scores = pd.DataFrame()
@@ -317,19 +377,25 @@ class EstimatorSelectionHelper:
         # initiate empty dict
         self.all_cv_results = {}
 
-        for estimator in self.grid_searches:
+        for estimator in self.test_results:
+
+            pickle_path = f'results/{self.dataset_name}/pkls/' \
+                          f'GridSearchCV_{estimator}.pkl'
+
+            with open(pickle_path, 'rb') as p:
+                gs = pickle.load(p)
 
             # fetch estimator cv results
-            cv_results = self.grid_searches[estimator].cv_results_
+            cv_results = gs.cv_results_
 
             # get params from cv_results
             params = cv_results['params']
 
             # validate and create variable for split ranges
-            if isinstance(self.grid_searches[estimator].cv, StratifiedKFold):
-                splits_range = range(self.grid_searches[estimator].cv.n_splits)
+            if isinstance(gs.cv, StratifiedKFold):
+                splits_range = range(gs.cv.n_splits)
             else:
-                splits_range = self.grid_searches[estimator].cv
+                splits_range = gs.cv
 
             # instantiate new dataframes
             df_estimator_scores = pd.DataFrame.from_records(params)
@@ -349,8 +415,7 @@ class EstimatorSelectionHelper:
                         split_key = f"split{s}_{score_type}_{score_name}"
 
                         # get results for it
-                        r = self.grid_searches[estimator] \
-                            .cv_results_[split_key]
+                        r = gs.cv_results_[split_key]
 
                         # append to dataframe
                         df_split_scores[split_key] = r
@@ -373,8 +438,7 @@ class EstimatorSelectionHelper:
 
             df_scores = pd.concat([df_scores, df_estimator_scores])
 
-            self.all_cv_results[estimator] = \
-                self.grid_searches[estimator].cv_results_
+            self.all_cv_results[estimator] = gs.cv_results_
 
         score_cols = [
             [
@@ -393,4 +457,23 @@ class EstimatorSelectionHelper:
 
         score_summary = df_scores[columns].reset_index(drop=True)
 
+        return score_summary
+
+    def generate_test_score_summary(self):
+
+        df_test_score = pd.DataFrame()
+        for estimator, result in self.test_results.items():
+            df_test_score = pd.concat([
+                df_test_score,
+                pd.DataFrame(
+                    {
+                        'estimator': [estimator],
+                        'AUPRC': [result['auprc']],
+                        'AUROC': [result['roc_auc']],
+                        'f1': [result['f1-score']]
+                    }
+                )
+            ])
+
+        score_summary = df_test_score.reset_index(drop=True)
         return score_summary

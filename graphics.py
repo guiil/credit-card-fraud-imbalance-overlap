@@ -11,7 +11,8 @@ matplotlib.rcParams.update(matplotlib.rcParamsDefault)
 
 def generate_graphics_from_gridsearchcv_results(
     dataset_name,
-    score_summary,
+    validation_score_summary,
+    test_score_summary,
     scoring
 ):
     def change_width(ax, new_value):
@@ -37,30 +38,30 @@ def generate_graphics_from_gridsearchcv_results(
     for i, score in enumerate(scoring):
 
         train_varname = f'mean_train_{score}_score'
-        test_varname = f'mean_test_{score}_score'
+        validation_varname = f'mean_test_{score}_score'
 
-        scor = score_summary[
-            ['Caractere', train_varname, test_varname]
+        scor = validation_score_summary[
+            ['Caractere', train_varname, validation_varname]
         ]
 
         scor = scor.rename(
             columns={
                 'Caractere': 'Estimador',
                 train_varname: 'Treino',
-                test_varname: 'Teste'
+                validation_varname: 'Validação'
             }
         )
 
         scor = scor.melt(
             id_vars=['Estimador'],
-            value_vars=['Treino', 'Teste'],
+            value_vars=['Treino', 'Validação'],
             var_name='Passo',
             value_name=score
         )
 
         # if i == 0:
         #     plot_order = scor.loc[
-        #         scor['Passo'] == 'Teste',
+        #         scor['Passo'] == 'Validação',
         #         ['Estimador', score]
         #     ].groupby('Estimador').mean().sort_values(
         #         score,
@@ -80,6 +81,27 @@ def generate_graphics_from_gridsearchcv_results(
             err_kws={'linewidth': .8}
         )
 
+        test_scor = test_score_summary.loc[
+            :,
+            ['Caractere', score]
+        ]
+        test_scor.rename(
+            columns={score: 'Teste'},
+            inplace=True
+        )
+
+        sns.lineplot(
+            data=test_scor,
+            marker='o',
+            sort=False,
+            ax=ax[i],
+            lw=1,
+            label='Teste',
+            markersize=4,
+            palette=['r'],
+            legend=False
+        )
+
         change_width(ax[i], .36)
         change_linestyle(ax[i], '--')
         ax[i].set(xlabel=None)
@@ -91,9 +113,13 @@ def generate_graphics_from_gridsearchcv_results(
         f'results/{dataset_name}/imgs/estimators_metrics.pgf',
         bbox_inches="tight"
     )
+    plt.savefig(
+        f'results/{dataset_name}/imgs/estimators_metrics.png',
+        bbox_inches="tight"
+    )
     plt.show()
 
-    scor = score_summary.loc[
+    scor = validation_score_summary.loc[
         :,
         [
             'estimator',
@@ -104,7 +130,7 @@ def generate_graphics_from_gridsearchcv_results(
     ]
 
     scor[['0', '1']] = scor['estimator'].apply(
-        lambda x: pd.Series(str(x).split(" | "))
+        lambda x: pd.Series(str(x).split("__"))
     )
     scor['Classificador'] = scor.apply(
         lambda x: x['0'] if x['1'] is np.nan else x['1'], axis=1
@@ -126,17 +152,48 @@ def generate_graphics_from_gridsearchcv_results(
             'mean_test_f1_score'
         ]
     ].rename(columns={
-        'mean_test_AUPRC_score': 'AUPRC',
-        'mean_test_AUROC_score': 'AUROC',
-        'mean_test_f1_score': 'f1',
+        'mean_test_AUPRC_score': 'AUPRC validação',
+        'mean_test_AUROC_score': 'AUROC validação',
+        'mean_test_f1_score': 'f1 validação',
     })
 
     scor = scor.melt(
         id_vars=['Amostragem', 'Classificador'],
-        value_vars=['AUPRC', 'AUROC', 'f1'],
+        value_vars=['AUPRC validação', 'AUROC validação', 'f1 validação'],
         var_name='Métrica',
         value_name='Valor'
     )
+
+    test_scor = test_score_summary.loc[
+        :,
+        [
+            'estimator',
+            'AUPRC',
+        ]
+    ]
+
+    test_scor[['0', '1']] = test_scor['estimator'].apply(
+        lambda x: pd.Series(str(x).split("__"))
+    )
+    test_scor['Classificador'] = test_scor.apply(
+        lambda x: x['0'] if x['1'] is np.nan else x['1'], axis=1
+    )
+    test_scor['Amostragem'] = test_scor.apply(
+        lambda x: None if x['0'] == x['Classificador'] else x['0'], axis=1
+    )
+    test_scor.loc[
+        test_scor['Amostragem'].isna(),
+        'Amostragem'
+    ] = 'Sem Amostragem'
+    test_scor.drop(columns=['estimator', '0', '1'], inplace=True)
+    test_scor = test_scor[
+        [
+            'Amostragem', 'Classificador',
+            'AUPRC'
+        ]
+    ].rename(columns={
+        'AUPRC': 'Valor',
+    })
 
     classificadores = pd.unique(scor['Classificador'])
 
@@ -165,6 +222,19 @@ def generate_graphics_from_gridsearchcv_results(
             capsize=0.10, err_kws={'linewidth': .8}
         )
 
+        plot_data = test_scor.loc[
+            test_scor['Classificador'] == clf,
+            ['Amostragem', 'Valor']
+        ]
+
+        sns.lineplot(
+            data=plot_data, ax=ax[i],
+            x='Amostragem', y='Valor',
+            marker='o',  # sort=False,
+            lw=1, label='AUPRC teste',
+            markersize=4, color='r', legend=False
+        )
+
         if i == 0:
             ax[i].xaxis.set_label_position('top')
 
@@ -183,6 +253,10 @@ def generate_graphics_from_gridsearchcv_results(
     plt.subplots_adjust(hspace=0.4)
     plt.savefig(
         f'results/{dataset_name}/imgs/sampling_compared.pgf',
+        bbox_inches="tight"
+    )
+    plt.savefig(
+        f'results/{dataset_name}/imgs/sampling_compared.png',
         bbox_inches="tight"
     )
     plt.show()
