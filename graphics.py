@@ -130,7 +130,7 @@ def generate_graphics_from_gridsearchcv_results(
     ]
 
     scor[['0', '1']] = scor['estimator'].apply(
-        lambda x: pd.Series(str(x).split(" | "))
+        lambda x: pd.Series(str(x).split("__"))
     )
     scor['Classificador'] = scor.apply(
         lambda x: x['0'] if x['1'] is np.nan else x['1'], axis=1
@@ -173,7 +173,7 @@ def generate_graphics_from_gridsearchcv_results(
     ]
 
     test_scor[['0', '1']] = test_scor['estimator'].apply(
-        lambda x: pd.Series(str(x).split(" | "))
+        lambda x: pd.Series(str(x).split("__"))
     )
     test_scor['Classificador'] = test_scor.apply(
         lambda x: x['0'] if x['1'] is np.nan else x['1'], axis=1

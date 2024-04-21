@@ -10,7 +10,7 @@ class RValue:
     def generate_all_metrics(self, x, y):
 
         neigh = NearestNeighbors(n_neighbors=self.n_neighbors + 1)
-        neigh.fit(x.values)
+        neigh.fit(x)
         total_samples = len(x)
 
         total_overlapping_samples = 0
@@ -20,12 +20,12 @@ class RValue:
             'total_samples': total_samples,
             'r(f)': 0,
         }
-        for c in y.unique():
+        for c in np.unique(y):
             metrics_dict[f'r(C{c})'] = 0
 
-        for idx, sample in enumerate(x.values):
+        for idx, sample in enumerate(x):
 
-            sample_class = y.iloc[idx]
+            sample_class = y[idx]
 
             n_nearests_neighbors = np.delete(
                 neigh.kneighbors([sample])[1][0],
@@ -34,7 +34,7 @@ class RValue:
 
             sample_neighbors_classes = []
             for neighbor in n_nearests_neighbors:
-                sample_neighbors_classes.append(y.iloc[neighbor])
+                sample_neighbors_classes.append(y[neighbor])
 
             set_knn_diff_classes = list(
                 filter(
@@ -56,7 +56,7 @@ class RValue:
         metrics_dict['total_overlapping_samples'] = total_overlapping_samples
         metrics_dict['R(f)'] = total_overlapping_samples/total_samples
 
-        for c in y.unique():
+        for c in np.unique(y):
             metrics_dict[f'R(C{c})'] = (
                 metrics_dict[f'r(C{c})'] /
                 len(y[y == c])
