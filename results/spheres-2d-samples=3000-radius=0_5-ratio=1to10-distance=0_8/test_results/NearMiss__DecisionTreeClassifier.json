@@ -1,0 +1,52 @@
+{
+    "dataset_name": "spheres-2d-samples=3000-radius=0_5-ratio=1to10-distance=0_8",
+    "best_params_": {
+        "DecisionTreeClassifier__criterion": "entropy",
+        "DecisionTreeClassifier__max_depth": 4,
+        "NearMiss__n_neighbors": 7,
+        "NearMiss__version": 2
+    },
+    "confusion_matrix": [
+        [
+            307,
+            102
+        ],
+        [
+            1,
+            40
+        ]
+    ],
+    "fpr": [
+        0.0,
+        0.22982885085574573,
+        0.24938875305623473,
+        0.36185819070904646,
+        1.0
+    ],
+    "tpr": [
+        0.0,
+        0.9024390243902439,
+        0.975609756097561,
+        1.0,
+        1.0
+    ],
+    "roc_auc": 0.8713101556443437,
+    "precision": [
+        0.09111111111111111,
+        0.21693121693121692,
+        0.28169014084507044,
+        0.2824427480916031,
+        1.0
+    ],
+    "recall": [
+        1.0,
+        1.0,
+        0.975609756097561,
+        0.9024390243902439,
+        0.0
+    ],
+    "auprc": 0.280789837045262,
+    "f1-score": 0.4371584699453552,
+    "gridsearchcv_fit_time": 1.593219,
+    "gridsearchcv_predict_time": 0.001002
+}
