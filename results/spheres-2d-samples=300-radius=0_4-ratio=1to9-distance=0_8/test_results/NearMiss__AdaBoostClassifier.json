@@ -1,0 +1,51 @@
+{
+    "dataset_name": "spheres-2d-samples=300-radius=0_4-ratio=1to9-distance=0_8",
+    "best_params_": {
+        "AdaBoostClassifier__n_estimators": 32,
+        "NearMiss__n_neighbors": 3,
+        "NearMiss__version": 1
+    },
+    "confusion_matrix": [
+        [
+            39,
+            2
+        ],
+        [
+            0,
+            4
+        ]
+    ],
+    "fpr": [
+        0.0,
+        0.024390243902439025,
+        0.04878048780487805,
+        0.0975609756097561,
+        1.0
+    ],
+    "tpr": [
+        0.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+    ],
+    "roc_auc": 0.9878048780487805,
+    "precision": [
+        0.08888888888888889,
+        0.5,
+        0.6666666666666666,
+        0.8,
+        1.0
+    ],
+    "recall": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        0.0
+    ],
+    "auprc": 0.8,
+    "f1-score": 0.8,
+    "gridsearchcv_fit_time": 3.775701,
+    "gridsearchcv_predict_time": 0.004499
+}

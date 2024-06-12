@@ -1,0 +1,52 @@
+{
+    "dataset_name": "spheres-2d-samples=300-radius=0_5-ratio=1to2.5-distance=0_0",
+    "best_params_": {
+        "GradientBoostingClassifier__learning_rate": 0.01,
+        "GradientBoostingClassifier__n_estimators": 32,
+        "SMOTE__k_neighbors": 7,
+        "SMOTE__sampling_strategy": 0.5
+    },
+    "confusion_matrix": [
+        [
+            32,
+            0
+        ],
+        [
+            13,
+            0
+        ]
+    ],
+    "fpr": [
+        0.0,
+        0.09375,
+        0.53125,
+        1.0,
+        1.0
+    ],
+    "tpr": [
+        0.0,
+        0.0,
+        0.07692307692307693,
+        0.9230769230769231,
+        1.0
+    ],
+    "roc_auc": 0.2512019230769231,
+    "precision": [
+        0.28888888888888886,
+        0.2727272727272727,
+        0.05555555555555555,
+        0.0,
+        1.0
+    ],
+    "recall": [
+        1.0,
+        0.9230769230769231,
+        0.07692307692307693,
+        0.0,
+        0.0
+    ],
+    "auprc": 0.25726495726495724,
+    "f1-score": 0.0,
+    "gridsearchcv_fit_time": 16.229441,
+    "gridsearchcv_predict_time": 0.001498
+}

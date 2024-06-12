@@ -1,0 +1,41 @@
+{
+    "dataset_name": "spheres-2d-samples=3000-radius=0_5-ratio=1to7-distance=1_2",
+    "best_params_": {
+        "AdaBoostClassifier__n_estimators": 32
+    },
+    "confusion_matrix": [
+        [
+            394,
+            0
+        ],
+        [
+            0,
+            56
+        ]
+    ],
+    "fpr": [
+        0.0,
+        0.0,
+        1.0
+    ],
+    "tpr": [
+        0.0,
+        1.0,
+        1.0
+    ],
+    "roc_auc": 1.0,
+    "precision": [
+        0.12444444444444444,
+        1.0,
+        1.0
+    ],
+    "recall": [
+        1.0,
+        1.0,
+        0.0
+    ],
+    "auprc": 1.0,
+    "f1-score": 1.0,
+    "gridsearchcv_fit_time": 0.080089,
+    "gridsearchcv_predict_time": 0.001503
+}
